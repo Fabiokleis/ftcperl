@@ -1,0 +1,6 @@
+-sname fserver-tcp
+
+-setcookie fserver-tcp_cookie
+
++K true
++A30
