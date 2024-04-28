@@ -33,20 +33,22 @@ init([Env]) ->
     Port = proplists:get_value(port, Env, ?PORT),
     Pool = proplists:get_value(pool, Env, ?POOL),
 
-    {ok, ListenSocket} = gen_tcp:listen(Port, [{active,once}]),
-
     SupFlags = #{strategy => simple_one_for_one,
                  intensity => 60,
                  period => 3600},
+    case gen_tcp:listen(Port, [{active,once}, binary]) of
+	{error,eaddrinuse} -> io:format("port already in use, stopping...\n"), init:stop();
+	{ok, ListenSocket} -> 
+	    %% start accept listener pool processes to handle multiple connections at the same time
+	    spawn_link(?MODULE, socket_accept_pool, [Pool]), 
+	    %% pass tcp listener to gen_server child process
+	    ChildSpecs = [#{id => server_tcp_child,
+			    start => {tcp_server, start_link, [ListenSocket]}, 
+			    modules => [tcp_server]
+			   }], 
+	    {ok, {SupFlags, ChildSpecs}}
+    end.
 
-    %% start accept listener pool processes to handle multiple connections at the same time
-    spawn_link(?MODULE, socket_accept_pool, [Pool]), 
-    %% pass tcp listener to gen_server child process
-    ChildSpecs = [#{id => server_tcp_child,
-		   start => {tcp_server, start_link, [ListenSocket]}, 
-		   modules => [tcp_server]
-		  }], 
-    {ok, {SupFlags, ChildSpecs}}.
 
 %% internal functions
 start_socket() ->
