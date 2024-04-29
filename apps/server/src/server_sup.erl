@@ -39,7 +39,7 @@ init([Env]) ->
     case gen_tcp:listen(Port, [{active,once}, binary]) of
 	{error,eaddrinuse} -> io:format("port already in use, stopping...\n"), init:stop();
 	{ok, ListenSocket} -> 
-	    %% start accept listener pool processes to handle multiple connections at the same time
+	    %% start accept listener process pool to handle multiple connections at the same time
 	    spawn_link(?MODULE, socket_accept_pool, [Pool]), 
 	    %% pass tcp listener to gen_server child process
 	    ChildSpecs = [#{id => server_tcp_child,

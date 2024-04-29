@@ -44,13 +44,20 @@ send(Socket, Str, _Args) ->
     ok = inet:setopts(Socket, [{active, once}]),
     ok.
 
--spec parse_message(string()) -> command().
+-spec parse_message(Message :: string()) -> command().
 parse_message(<<"sair\r\n">>) -> exit;
 parse_message(<<"chat\r\n">>) -> chat;			     
 parse_message(<<"help\r\n">>) -> help;
 parse_message(<<"file", Path/bitstring>>) -> {file, Path};
 parse_message(_) -> unknown.
 
+-spec check_file(Path :: string()) -> {file:io_device(), string()} | {error, atom()}.
+check_file(Path) ->
+    case file:open(Path, [raw]) of
+	{ok, File} -> {File, "should be a checksum"};
+	{error, Reason} -> {error, Reason}
+    end.
+    
 handle_cast(accept, S = #state{socket=ListenSocket}) ->
     {ok, AcceptSocket} = gen_tcp:accept(ListenSocket), %% get received tcp socket
     server_sup:start_socket(), %% a new acceptor is born, praise the lord
@@ -60,10 +67,16 @@ handle_info({tcp, Socket, Msg}, S = #state{command=parse}) ->
     io:format("received message: ~p~n", [Msg]),
     case parse_message(Msg) of
 	exit -> send(Socket, "saindo...\n", []), {stop, {normal, exit}, S};
-	unknown -> send(Socket, "comando desconhecido\n", []), {noreply, S};
+	unknown -> send(Socket, "comando desconhecido, digite help!\n", []), {noreply, S};
 	chat -> send(Socket, "modo de chat habilitado\n", []), {noreply, S#state{command=chat}};
 	help -> send(Socket, ?HELP_MESSAGE, []), {noreply, S};
-	{file, _Path} -> {stop, "Not implemented yet", S}
+	{file, Path} -> 
+	    case check_file(Path) of
+		{_File, _CheckSum} -> send(Socket, "Not implemented yet.~n", []), {noreply, S};
+		{error, Reason} -> 
+		    send(Socket, io_lib:format("failed to open file: ~p, cause: ~p~n", [Path, Reason]), []),
+		    {noreply, S}
+	    end
     end;
 
 %% only stops sending echo if chat was typed again
