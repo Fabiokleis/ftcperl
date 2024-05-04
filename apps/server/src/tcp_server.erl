@@ -33,7 +33,7 @@ init(Socket) ->
     %% Because accepting a connection is a blocking function call,
     %% we can not do it in here. Forward to the server loop!
     gen_server:cast(self(), accept), %% call handle_cast(accept...)
-    {ok, #state{socket=Socket}}.
+    {ok, #state{socket=Socket, command=parse}}.
  
 %% We never need you, handle_call!
 handle_call(_E, _From, State) ->
@@ -61,6 +61,7 @@ check_file(Path) ->
 handle_cast(accept, S = #state{socket=ListenSocket}) ->
     {ok, AcceptSocket} = gen_tcp:accept(ListenSocket), %% get received tcp socket
     server_sup:start_socket(), %% a new acceptor is born, praise the lord
+    send(AcceptSocket, "welcome mike!~n", []),
     {noreply, S#state{socket=AcceptSocket, command=parse}}.
 
 handle_info({tcp, Socket, Msg}, S = #state{command=parse}) ->
@@ -72,10 +73,10 @@ handle_info({tcp, Socket, Msg}, S = #state{command=parse}) ->
 	help -> send(Socket, ?HELP_MESSAGE, []), {noreply, S};
 	{file, Path} -> 
 	    case check_file(Path) of
-		{_File, _CheckSum} -> send(Socket, "Not implemented yet.~n", []), {noreply, S};
 		{error, Reason} -> 
 		    send(Socket, io_lib:format("failed to open file: ~p, cause: ~p~n", [Path, Reason]), []),
-		    {noreply, S}
+		    {noreply, S};
+		{_File, _CheckSum} -> send(Socket, "Not implemented yet.~n", []), {noreply, S}
 	    end
     end;
 
@@ -88,13 +89,14 @@ handle_info({tcp, Socket, Msg}, S = #state{command=chat}) ->
     end;
 
 handle_info({tcp_closed, _Socket}, S) ->
-    io:format("~p: closed socket~n", [S]),
+    io:format("[~p]: closed socket~n", [S]),
     {noreply, S}.
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-terminate(normal, _State) ->
+terminate(normal, _ = #state{socket=Socket}) ->
+    gen_tcp:close(Socket),
     ok;
 terminate(Reason, State) ->
-    io:format("~p: terminate reason: ~p~n", [State, Reason]).
+    io:format("[~p]: terminate reason: ~p~n", [State, Reason]).
