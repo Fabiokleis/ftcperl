@@ -44,6 +44,7 @@ init([Env]) ->
 	    %% pass tcp listener to gen_server child process
 	    ChildSpecs = [#{id => server_tcp_child,
 			    start => {tcp_server, start_link, [ListenSocket]}, 
+			    restart => temporary,
 			    modules => [tcp_server]
 			   }], 
 	    {ok, {SupFlags, ChildSpecs}}

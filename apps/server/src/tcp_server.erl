@@ -75,7 +75,7 @@ handle_cast(accept, S = #state{socket=ListenSocket, client_id=none}) ->
 handle_info({tcp, Socket, Msg}, S = #state{client_id=ClientId, command=parse}) ->
     io:format("received message: ~p~n", [Msg]),
     case parse_message(Msg) of
-	exit -> send(Socket, "saindo...\n", []), {stop, {normal, exit}, S};
+	exit -> send(Socket, "saindo...\n", []), {stop, normal, S};
 	unknown -> send(Socket, "comando desconhecido, digite help!\n", []), {noreply, S};
 	chat -> send(Socket, "modo de chat habilitado\n", []), {noreply, S#state{command=chat}};
 	help -> send(Socket, ?HELP_MESSAGE, []), {noreply, S};
@@ -85,7 +85,10 @@ handle_info({tcp, Socket, Msg}, S = #state{client_id=ClientId, command=parse}) -
 		{error, Reason} -> 
 		    send(Socket, io_lib:format("failed to open file: ~p, cause: ~p\n", [Path, Reason]), []),
 		    {noreply, S};
-		{_File, _CheckSum} -> send(Socket, "Not implemented yet.\n", []), {noreply, S}
+		{_File, CheckSum} -> 
+		    %% send(Socket, "Not implemented yet.\n", []), 
+		    send(Socket, CheckSum ++ "2", []),
+		    {noreply, S}
 	    end
     end;
 
@@ -104,8 +107,11 @@ handle_info({tcp_closed, _Socket}, S) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-terminate(normal, _State) ->
+terminate(normal, _ = #state{socket=Socket}) ->
+    ok = gen_tcp:close(Socket),
     ok;
-terminate(Reason, State) ->
+
+terminate(Reason, State = #state{socket=Socket}) ->
+    ok = gen_tcp:close(Socket),
     io:format("~p: terminate reason: ~p~n", [State, Reason]),
     ok.
