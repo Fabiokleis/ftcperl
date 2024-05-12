@@ -47,6 +47,8 @@ init([Env]) ->
 			    restart => temporary,
 			    modules => [tcp_server]
 			   }], 
+
+	    application:ensure_all_started(crypto),
 	    {ok, {SupFlags, ChildSpecs}}
     end.
 
