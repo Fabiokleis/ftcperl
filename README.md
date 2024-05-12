@@ -1,6 +1,6 @@
 # ftcperl
 
-Erlang File Server over tcp written in erlang. 
+File Server over tcp written in erlang. 
 simple python client.
 
 Server
