@@ -13,13 +13,13 @@ code_change/3, terminate/2]).
 
  -include_lib("kernel/include/file.hrl").
 
--define(HELP_MESSAGE, "cliente: comande o servidor digitando um dos comandos.
+-define(HELP_MESSAGE, "comande o servidor digitando um dos comandos.
 
 comandos disponiveis: [chat, file, sair, help].
     help: mostra essa mensagem de ajuda.
     sair: termina o processo com o servidor.
-    chat: habilita e desabilita o modo chat.
-    file <nome>: copia um arquivo desejado.
+    chat: habilita e desabilita o modo chat. %% echo server
+    file <nome>: copia um arquivo desejado. %% e.g file client.py
 ").
 
 -define(CHUNK_SIZE, 8192).
@@ -101,7 +101,7 @@ send_file(Socket, File) ->
 handle_info({tcp, Socket, Msg}, S = #state{client_id=ClientId, command=parse}) ->
     io:format("client_id=~p message=~p~n", [ClientId, Msg]),
     case parse_message(Msg) of
-	exit -> send(Socket, "saindo...\n", []), {stop, normal, S};
+	exit -> {stop, normal, S};
 	unknown -> send(Socket, "comando desconhecido, digite help!\n", []), {noreply, S};
 	chat -> send(Socket, "modo de chat habilitado\n", []), {noreply, S#state{command=chat}};
 	help -> send(Socket, ?HELP_MESSAGE, []), {noreply, S};

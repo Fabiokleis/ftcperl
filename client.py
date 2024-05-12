@@ -8,7 +8,6 @@ from multiprocessing import Process
 SERVER = 'localhost'
 PORT = 8123
 CHUNK_SIZE = 8192
-MAX_MESSAGE_SIZE = 1024
 
 Clients = []
 
@@ -18,7 +17,7 @@ def create_client():
     f = ChunkableFile() # new file
     
     c.send(format('client_id'))
-    f.client_id = c.recv(MAX_MESSAGE_SIZE).decode() # get base64 random client id
+    f.client_id = c.recv(CHUNK_SIZE).decode() # get base64 random client id
 
     return c, f
 
@@ -74,11 +73,9 @@ def keep_reading(c, f):
         
         f.write(msg) # write file chunk
 
-    print('')
     f.check_checksum()
     f.close()
     c.close()
-    
         
 def main():
     c, f = create_client()
@@ -86,9 +83,14 @@ def main():
         try:
             msg = input(f'{f.client_id}@{SERVER}$ ')
             c.send(format(msg))
-            resp = c.recv(MAX_MESSAGE_SIZE)
+            resp = c.recv(CHUNK_SIZE)
 
-            if resp[-1] == 0xa and msg != 'sair': # catch possible error message
+            if resp == b'':
+                print(f'closing client ${f}')
+
+                return # return from recursive call
+
+            if resp[-1] == 0xa: # catch possible error message
                 print(resp.decode(), end='')
                 continue
 
@@ -100,19 +102,13 @@ def main():
                 Clients.append(p)
                 p.start()
                 main() # new client
-
-            if resp.decode().startswith('saindo') or msg == 'sair':
-                print('gracefully shutdown')
-                f.close()
-                c.close()
-                break
-            
-            print(resp.decode()) # common message
             
         except Exception as e:
             print(e)
             break
 
+    c.close() # only need to close socket connection
+    
     for cp in Clients:
         cp.join()
 
