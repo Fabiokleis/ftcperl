@@ -22,7 +22,7 @@ comandos disponiveis: [chat, file, sair, help].
     file <nome>: copia um arquivo desejado.
 ").
 
--define(CHUNK_SIZE, 1024).
+-define(CHUNK_SIZE, 8192).
 
 %% server supported commands
 -type command() :: parse | exit | chat | help | unknown.
@@ -83,15 +83,11 @@ strip(Path) ->
 -spec check_file(Path :: string()) -> {file:io_device(), string()} | {error, atom()}.
 check_file(Path) ->
     case file:open(Path, [read, raw, binary]) of
-	{ok, Fd} -> 
-	    FinalCheckSum = calc_checksum(Fd, crypto:hash_init(sha256), 8192),
-	    io:format("~p~n", [FinalCheckSum]),
-	    {Fd, FinalCheckSum};
+	{ok, Fd} -> {Fd, calc_checksum(Fd, crypto:hash_init(sha256), ?CHUNK_SIZE)};
 	{error, Reason} -> {error, Reason}
     end.
 
 send_file(Socket, File, Acc) ->
-    io:format("sending file...~n"),
     case file:pread(File, Acc, ?CHUNK_SIZE) of
 	{ok, Chunk} ->
 	    send(Socket, Chunk, []), 
@@ -120,18 +116,17 @@ handle_info({tcp, Socket, Msg}, S = #state{client_id=ClientId, command=parse}) -
 		    {ok, FileInfo} = file:read_file_info(File),
 		    _Size = FileInfo#file_info.size,
 		    Type = FileInfo#file_info.type,
-		    io:format("size: ~p type: ~p~n", [_Size, Type]),
+
+		    io:format("client_id=~p check_sum=~p~n", [ClientId, CheckSum]),
+		    send(Socket, binary_to_list(CheckSum), []), %% send checksum
 
 		    case Type of
 			regular -> 
 			    case send_file(Socket, File) of
-				eof -> 
-				    SPath = strip(Path),
-				    send(Socket, <<SPath/bitstring, CheckSum/binary, "\n">>, []),
-				    file:close(File),
-				    {noreply, S};
-				
-				{error, Reason} -> io:format("failed to read file chunk, reason: ~p", [Reason]), {stop, normal, S}
+				eof -> file:close(File), {stop, normal, S};
+				{error, Reason} -> 
+				    io:format("failed to read file chunk, reason: ~p", [Reason]), 
+				    {stop, normal, S}
 			    end;
 			_ -> 
 			    send(Socket, io:format("tipo de arquivo ~p, nao suportado\n", [Type]), []),
