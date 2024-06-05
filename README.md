@@ -3,6 +3,13 @@
 File Server over tcp written in erlang. 
 simple python client.
 
+Protocol
+----
+
+![flux(12)](https://github.com/Fabiokleis/ftcperl/assets/66813406/48f22bc2-3bc3-4fc6-8484-0cd3dc1f036a)
+
+
+
 Server
 ----
 An OTP application.
