@@ -8,8 +8,6 @@ Protocol
 
 ![flux(12)](https://github.com/Fabiokleis/ftcperl/assets/66813406/48f22bc2-3bc3-4fc6-8484-0cd3dc1f036a)
 
-
-
 Server
 ----
 An OTP application.
@@ -46,3 +44,9 @@ comandos disponiveis: [chat, file, sair, help].
     file <nome>: copia um arquivo desejado. %% e.g file client.py
 ").
 ```
+
+Docker
+----
+
+	$ docker build . -t server:latest
+	$ docker run -d -p 8123:8123 server:latest
