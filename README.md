@@ -49,4 +49,4 @@ Docker
 ----
 
 	$ docker build . -t server:latest
-	$ docker run -d -p 8123:8123 server:latest
+	$ docker run -d --name server -p 8123:8123 server:latest
