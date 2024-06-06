@@ -58,6 +58,10 @@ send(Socket, Str, _Args) ->
     ok = inet:setopts(Socket, [{active, once}]),
     ok.
 
+-spec calc_checksum(Fd, CheckSum, ChunkSize) -> binary() | {error, atom()} when 
+      Fd :: file:io_device(),
+      CheckSum :: crypto:hash_state(),
+      ChunkSize :: pos_integer(). 
 calc_checksum(Fd, Checksum, ChunkSize) ->
     case file:read(Fd, ChunkSize) of
         {ok, Data} ->

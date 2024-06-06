@@ -12,13 +12,12 @@ CHUNK_SIZE = 8192
 Clients = []
 
 def create_client():
-    c = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # tcp socket
-    c.connect((SERVER, PORT)) # client connection
-    f = ChunkableFile() # new file
+    c = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # tcp socket
+    c.connect((SERVER, PORT))  # client connection
+    f = ChunkableFile()  # new file
     
     c.send(format('client_id'))
-    f.client_id = c.recv(CHUNK_SIZE).decode() # get base64 random client id
-
+    f.client_id = c.recv(CHUNK_SIZE).decode()  # get base64 random client id
     return c, f
 
 class ChunkableFile:
@@ -27,36 +26,39 @@ class ChunkableFile:
         self.server_file_name = ''
         self.file_name = ''
         self.check_sum = ''
-        self.failed = False
         self.file = None
-        
+        self.failed = False
+
     def write(self, data):
         if self.file_name == '':
             self.file_name = pathlib.Path(self.server_file_name).parts[-1]
 
-        if None == self.file:
-            self.file = open(f'{self.file_name}.copy', 'w+b') # write read in binary
+        if self.file is None:
+            self.file = open(f'{self.file_name}.copy', 'w+b')  # write read in binary
 
         self.file.write(data)
 
     def check_checksum(self):
-        self.file.seek(0) # start reading file at the beginning
+        self.file.seek(0)  # start reading file at the beginning
         hs256 = hashlib.sha256()
         for chunk in iter(lambda: self.file.read(CHUNK_SIZE), b''):
             hs256.update(chunk)
 
-        self.failed = self.check_sum != hs256.hexdigest()
+        generated = hs256.hexdigest()
+
+        print(f'verifying checksum... {self.check_sum} X {generated}')
+        self.failed = self.check_sum != generated
 
     def close(self):
-        if None != self.file and self.failed:
+        if self.file is not None and self.failed:
             os.remove(f'{self.file_name}.copy')
             print(f'failed to copy {self.file_name}')
-        elif None != self.file:
+        elif self.file is not None:
             print(f'successfully copied {self.server_file_name} to {self.file_name}.copy')
             self.file.close()
 
     def __repr__(self):
-        if None != self.file:
+        if self.file is not None:
             return self.file
         return self.client_id
 
@@ -68,15 +70,16 @@ def format(message: str):
 def keep_reading(c, f):
     while True:
         msg = c.recv(CHUNK_SIZE)
-        if msg == b'': # stop proccess when server socket was closed
+        if msg == b'':  # stop proccess when server socket was closed
             break
-        
-        f.write(msg) # write file chunk
+
+        f.write(msg)  # write file chunk
 
     f.check_checksum()
     f.close()
     c.close()
-        
+
+
 def main():
     c, f = create_client()
     while True:
@@ -88,27 +91,27 @@ def main():
             if resp == b'':
                 print(f'closing client ${f}')
 
-                return # return from recursive call
+                return  # return from recursive call
 
-            if resp[-1] == 0xa: # catch possible error message
+            if resp[-1] == 0xa:  # catch possible error message
                 print(resp.decode(), end='')
                 continue
 
-            if msg.startswith('file '):    
+            if msg.startswith('file '):
                 f.server_file_name = msg.split(' ')[1]
-                f.check_sum = resp.hex() # should be checksum after file message or error
+                f.check_sum = resp.hex()  # should be checksum after file message or error
 
                 p = Process(target=keep_reading, args=(c, f))
                 Clients.append(p)
                 p.start()
-                main() # new client
-            
+                main()  # new client
+
         except Exception as e:
             print(e)
             break
 
-    c.close() # only need to close socket connection
-    
+    c.close()  # only need to close socket connection
+
     for cp in Clients:
         cp.join()
 
