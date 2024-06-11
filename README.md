@@ -5,8 +5,7 @@ simple python client.
 
 Protocol
 ----
-
-![flux(12)](https://github.com/Fabiokleis/ftcperl/assets/66813406/48f22bc2-3bc3-4fc6-8484-0cd3dc1f036a)
+![flux(14)](https://github.com/Fabiokleis/ftcperl/assets/66813406/16443546-888c-4f86-acb9-ffdf5d8cc273)
 
 Server
 ----
